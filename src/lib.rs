@@ -136,13 +136,6 @@ impl MouseActionExt for WebDriver {
         let final_pos_x = target_pos_x + thread_rng().gen_range(-quarter_width..=quarter_width);
         let final_pos_y = target_pos_y + thread_rng().gen_range(-quarter_height..=quarter_height);
 
-        let action_chain = self.action_chain_with_delay(None, Some(0));
-        action
-            .start_action
-            .action(action_chain)
-            .perform()
-            .await?;
-
         let mut positions = match &action.interpolation {
             MouseInterpolation::Linear => create_linear_steps(
                 mouse_x,
@@ -164,13 +157,15 @@ impl MouseActionExt for WebDriver {
             jitter(&mut positions, action.jitter_amount);
         }
 
-        let mut actions = self.action_chain_with_delay(None, Some(0));
-        for point in positions {
-            actions = actions.move_to(point.0, point.1);
-        }
-        actions.perform().await?;
+        let action_chain = self.action_chain_with_delay(None, Some(0));
+        let mut action_chain = action
+            .start_action
+            .action(action_chain);
 
-        let action_chain = self.action_chain();
+        for point in positions {
+            action_chain = action_chain.move_to(point.0, point.1);
+        }
+
         action.end_action.action(action_chain).perform().await?;
 
         Ok(())
