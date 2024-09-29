@@ -1,0 +1,11 @@
+[package]
+name = "thirtyfour-mouse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+enterpolation = "0.2.1"
+rand = { version = "0.8.5", features = [] }
+thirtyfour = { path = "../thirtyfour/thirtyfour" }
+async-trait = "0.1.83"
+log = "0.4.22"
