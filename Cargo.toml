@@ -8,4 +8,3 @@ enterpolation = "0.2.1"
 rand = { version = "0.8.5", features = [] }
 thirtyfour = { git = "https://github.com/0xlunar/thirtyfour.git", branch = "custom-delay-action-chains" }
 async-trait = "0.1.83"
-log = "0.4.22"
