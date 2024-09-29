@@ -138,7 +138,6 @@ impl MouseActionExt for WebDriver {
 
         let action_chain = self.action_chain_with_delay(None, Some(0));
         action
-            .clone()
             .start_action
             .action(action_chain)
             .perform()
