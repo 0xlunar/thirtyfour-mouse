@@ -3,6 +3,7 @@ use enterpolation::bezier::Bezier;
 use enterpolation::bspline::BSpline;
 use enterpolation::{easing, linear::Linear, Curve};
 use rand::{thread_rng, Rng};
+use std::time::Duration;
 use thirtyfour::action_chain::ActionChain;
 use thirtyfour::error::{WebDriverError, WebDriverResult};
 use thirtyfour::{WebDriver, WebElement};
@@ -157,10 +158,8 @@ impl MouseActionExt for WebDriver {
             jitter(&mut positions, action.jitter_amount);
         }
 
-        let action_chain = self.action_chain_with_delay(None, Some(0));
-        let mut action_chain = action
-            .start_action
-            .action(action_chain);
+        let action_chain = self.action_chain_with_delay(None, Some(Duration::ZERO));
+        let mut action_chain = action.start_action.action(action_chain);
 
         for point in positions {
             action_chain = action_chain.move_to(point.0, point.1);
