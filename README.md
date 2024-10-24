@@ -2,7 +2,7 @@
 Adjustable mouse movement controls for Thirtyfour
 
 ## Notice
-Requires use of [PR #242](https://github.com/Vrtgs/thirtyfour/pull/242), this package makes use of methods within the PR to achieve desired results.
+Currently, uses the Github repo for Thirtyfour as the required changes have not been pushed to crates.io yet.
 
 ## Example
 ```rust
