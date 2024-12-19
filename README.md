@@ -1,9 +1,6 @@
 # thirtyfour-mouse
 Adjustable mouse movement controls for Thirtyfour
 
-## Notice
-Currently, uses the Github repo for Thirtyfour as the required changes have not been pushed to crates.io yet.
-
 ## Example
 ```rust
 #[tokio::main]

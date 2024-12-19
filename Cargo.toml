@@ -2,9 +2,12 @@
 name = "thirtyfour-mouse"
 version = "0.1.0"
 edition = "2021"
+description = "Manipulate mouse movements with ThirtyFour"
+repository = "https://github.com/0xlunar/thirtyfour-mouse"
+license = "GPL-3.0"
 
 [dependencies]
 enterpolation = "0.2.1"
 rand = { version = "0.8.5", features = [] }
-thirtyfour = { git = "https://github.com/Vrtgs/thirtyfour", branch = "main" }
+thirtyfour = { version = "0.35.0" }
 async-trait = "0.1.83"
