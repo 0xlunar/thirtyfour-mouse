@@ -2,7 +2,8 @@ use async_trait::async_trait;
 use enterpolation::bezier::Bezier;
 use enterpolation::bspline::BSpline;
 use enterpolation::{easing, linear::Linear, Curve};
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
+use std::ops::Div;
 use std::time::Duration;
 use thirtyfour::action_chain::ActionChain;
 use thirtyfour::error::{WebDriverError, WebDriverResult};
@@ -13,7 +14,7 @@ pub struct MouseAction {
     interpolation: MouseInterpolation,
     start_action: MouseButtonAction,
     end_action: MouseButtonAction,
-    duration_ms: u64,
+    duration: Duration,
     jitter_amount: i64,
 }
 
@@ -39,36 +40,41 @@ impl MouseAction {
         interpolation: MouseInterpolation,
         start_action: MouseButtonAction,
         end_action: MouseButtonAction,
-        duration_ms: Option<u64>,
+        duration: Option<Duration>,
         jitter_amount: Option<i64>,
     ) -> Self {
         let jitter_amount = jitter_amount.unwrap_or(0);
-        let mut duration_ms = duration_ms.unwrap_or(500);
+        let mut duration = duration.unwrap_or(Duration::from_millis(500));
 
         // Each Action takes between 5-9ms with it averaging out to 7ms
-        let divider = 7;
-        if duration_ms < divider {
-            duration_ms = 1;
+        let divider: u32 = 7;
+        if duration.as_millis() <= divider as u128 {
+            duration = Duration::from_millis(1);
         } else {
-            duration_ms /= divider;
+            duration = duration.div(divider);
         }
 
         MouseAction {
             interpolation,
             start_action,
             end_action,
-            duration_ms,
+            duration,
             jitter_amount,
         }
     }
 }
 
+pub enum MouseTarget<'a> {
+    Position { x: f64, y: f64 },
+    WebElement(&'a WebElement),
+}
+
 #[async_trait]
 pub trait MouseActionExt {
-    async fn mouse_action(
+    async fn mouse_action<'a>(
         &self,
         action: MouseAction,
-        target_element: &WebElement,
+        target_element: MouseTarget<'a>,
     ) -> WebDriverResult<()>;
 }
 
@@ -77,10 +83,10 @@ impl MouseActionExt for WebDriver {
     /// Simulate mouse movement across a path over a duration
     ///
     /// Note: There is no guarantee the duration is exact, but should be close
-    async fn mouse_action(
+    async fn mouse_action<'a>(
         &self,
         action: MouseAction,
-        target_element: &WebElement,
+        target_element: MouseTarget<'a>,
     ) -> WebDriverResult<()> {
         let mouse_x_ret = self
             .execute(r#"return window.tf_m_mouse_x || -1;"#, Vec::new())
@@ -125,17 +131,24 @@ impl MouseActionExt for WebDriver {
             }
         }
 
-        let target_rect = target_element.rect().await?;
+        let (pos_x, pos_y, width, height) = match target_element {
+            MouseTarget::Position { x, y } => (x, y, 0.00, 0.00),
+            MouseTarget::WebElement(we) => {
+                let rect = we.rect().await?;
 
-        let half_width = (target_rect.width / 2.00) as i64;
-        let half_height = (target_rect.height / 2.00) as i64;
-        let target_pos_x = target_rect.x as i64 + half_width; // Middle of element
-        let target_pos_y = target_rect.y as i64 + half_height; // Middle of element
+                (rect.x, rect.y, rect.width, rect.height)
+            }
+        };
 
-        let quarter_width = half_width / 2;
-        let quarter_height = half_height / 2;
-        let final_pos_x = target_pos_x + thread_rng().gen_range(-quarter_width..=quarter_width);
-        let final_pos_y = target_pos_y + thread_rng().gen_range(-quarter_height..=quarter_height);
+        let half_width = div(width, 2.00) as i64;
+        let half_height = div(height, 2.00) as i64;
+        let target_pos_x = pos_x as i64 + half_width; // Middle of element
+        let target_pos_y = pos_y as i64 + half_height; // Middle of element
+
+        let quarter_width = half_width.checked_div(2).unwrap_or(0);
+        let quarter_height = half_height.checked_div(2).unwrap_or(0);
+        let final_pos_x = target_pos_x + rng().random_range(-quarter_width..=quarter_width);
+        let final_pos_y = target_pos_y + rng().random_range(-quarter_height..=quarter_height);
 
         let mut positions = match &action.interpolation {
             MouseInterpolation::Linear => create_linear_steps(
@@ -143,14 +156,14 @@ impl MouseActionExt for WebDriver {
                 mouse_y,
                 final_pos_x,
                 final_pos_y,
-                action.duration_ms as usize,
+                action.duration.as_millis() as usize,
             ),
             MouseInterpolation::Spline => create_spline_steps(
                 mouse_x,
                 mouse_y,
                 final_pos_x,
                 final_pos_y,
-                action.duration_ms as usize,
+                action.duration.as_millis() as usize,
             ),
         };
 
@@ -185,10 +198,10 @@ impl MouseButtonAction {
 
 fn jitter(input: &mut [(i64, i64)], amount: i64) {
     input.iter_mut().for_each(|(x, y)| {
-        let add_jitter = thread_rng().gen_bool(1.00 / 5.00);
+        let add_jitter = rng().random_bool(1.00 / 5.00);
         if add_jitter {
-            *x += thread_rng().gen_range(-amount..=amount);
-            *y += thread_rng().gen_range(-amount..=amount);
+            *x += rng().random_range(-amount..=amount);
+            *y += rng().random_range(-amount..=amount);
         }
     })
 }
@@ -205,9 +218,9 @@ fn create_spline_steps(
     let y_min = start_y.min(end_y);
     let y_max = start_y.max(end_y);
 
-    let mut rng = thread_rng();
-    let x_offset_one = rng.gen_range(x_min..x_max);
-    let y_offset_one = rng.gen_range(y_min..y_max);
+    let mut rng = rng();
+    let x_offset_one = rng.random_range(x_min..x_max);
+    let y_offset_one = rng.random_range(y_min..y_max);
 
     let linear_x = Linear::builder()
         .elements([start_x as f64, x_offset_one as f64, end_x as f64])
@@ -283,4 +296,12 @@ fn create_linear_steps(
             (x as i64, y as i64)
         })
         .collect::<Vec<_>>()
+}
+
+fn div(lhs: f64, rhs: f64) -> f64 {
+    if rhs == 0.00 || lhs == 0.00 {
+        // Division by 0
+        return 0.00;
+    }
+    lhs / rhs
 }
